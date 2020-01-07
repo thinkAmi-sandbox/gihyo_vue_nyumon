@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<title>4.4のサンプルアプリ</title>
+<style>
+</style>
+
+<div id="app">
+    <nav>
+        <!-- router-linkによるナビゲーション定義 -->
+        <router-link to="/top">トップページ</router-link>
+        <router-link to="/users">ユーザー一覧ページ</router-link>
+    </nav>
+    
+    <router-view></router-view>
+</div>
+
+<script src="https://unpkg.com/vue@2.5.17"></script>
+<script src="https://unpkg.com/vue-router@3.0.1"></script>
+
+<!-- ユーザー一覧のテンプレート -->
+<script type="text/x-template" id="user-list">
+    <div>
+        <div class="loading" v-if="loading">読込中...</div>
+
+        <div v-if="error" class="error">
+            {{error}}
+        </div>
+
+        <!-- usersがロードされたら、各ユーザーの名前を表示する -->
+        <div v-for="user in users" :key="user.id">
+            <h2>{{ user.name }}</h2>
+        </div>
+    </div>
+</script>
+
+<!-- ユーザー詳細のテンプレート -->
+<script type="text/x-template" id="user-detail">
+    <div>
+        <div class="loading" v-if="loading">読込中...</div>
+        <div v-if="error" class="error">
+            {{error}}
+        </div>
+
+        <div v-if="user">
+            <h2>{{user.name}}</h2>
+            <p>{{user.description}}</p>
+        </div>
+    </div>
+</script>
+
+<script>
+    var userData = [
+        {
+            id: 1,
+            name: "Foo",
+            description: "エンジニア1"
+        },
+        {
+            id: 2,
+            name: "Bar",
+            description: "エンジニア2"
+        }
+    ]
+
+    // 擬似的にAPI経由で情報を取得したようにする
+    var getUser = function(userId, callback) {
+        setTimeout(function() {
+            var filteredUsers = userData.filter(function (user) {
+                return user.id == parseInt(userId, 10)
+            })
+            callback(null, filteredUsers && filteredUsers[0])
+        }, 1000)
+    }
+
+    // ユーザー一覧を表示するコンポーネントのJS
+    var getUsers = function(callback) {
+        setTimeout(function() {
+            callback(null, [
+                {
+                    id: 1,
+                    name: "Foo"
+                },
+                {
+                    id: 2,
+                    name: "Bar"
+                }
+            ])
+        }, 1000)
+    }
+
+    // ユーザー一覧のコンポーネント
+    var UserList = {
+        template: "#user-list",
+
+        data: function() {
+            return {
+                loading: false,
+                users: function() {return []}, // 初期値の空配列
+                error: null
+
+            }
+        },
+
+        created: function() {
+            this.fetchData()
+        },
+
+        // $routeの変更をwatchすることで、ルーティングが変更されたときに、再度データを取得
+        watch: {
+            '$route': 'fetchData'
+        },
+
+        methods: {
+            fetchData: function() {
+                this.loading = true
+
+                // 取得したデータの結果をusersに格納する
+                // Function.prototype.bindは、thisのスコープを渡すために利用
+                getUsers((function (err, users) {
+                    this.loading = false
+                    if (err) {
+                        this.error = err.toString()
+                    } else {
+                        this.users = users
+                    }
+                }).bind(this))
+            }
+        }
+    }
+
+    // ユーザー詳細のコンポーネント
+    var UserDetail = {
+        template: "#user-detail",
+
+        // 初期値のセット
+        data: function() {
+            return {
+                loading: false,
+                user: null,
+                error: null
+            }
+        },
+
+        created: function(){
+            this.fetchData()
+        },
+
+        watch: {
+            '$route': 'fetchData'
+        },
+
+        methods: {
+            fetchData: function() {
+                this.loading = true
+
+                // this.$route.params.userIdに、現在のURL上のパラメータに対応したuserIdが設定
+                getUser(this.$route.params.userId, (function(err, user){
+                    this.loading = false
+
+                    if (err) {
+                        this.error = err.toString()
+                    } else {
+                        this.user = user
+                    }
+                }).bind(this))
+            }
+        }
+    }
+
+
+
+    var router = new VueRouter({
+        // ルートのマッピング
+        routes: [
+            {
+                path: "/top",
+                component: {
+                    template: '<div>トップページです</div>'
+                }
+            },
+            {
+                path: "/users",
+                component: UserList
+            },
+
+            // ルート定義の追加
+            {
+                // URLパラメータに含まれるIDを :userIDとしてパターンマッチで受け取る
+                path: "/users/:userId",
+                component: UserDetail
+            }
+        ]
+    })
+
+    var app = new Vue({
+        router: router
+    }).$mount('#app')
+</script>
